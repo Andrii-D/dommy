@@ -1,0 +1,57 @@
+var BETA = 1.0; // 1-BETA - jump probability
+var BASE = 1; // sum(rank) = BASE
+var EPS = 0.001;
+var N = 0;
+var client = require('./utils/redis');
+
+client.get("COUNTER", function (err, counter){
+    N = counter;
+    client.del("RANK");
+    client.del("OLDRANK");
+    for (var i = 1; i <= N; i++){ // RANK - sorted set [id:rank, id:rank, ...]
+        client.zadd("RANK", BASE / N, i);
+        client.zadd("OLDRANK", 0, i);
+    }
+
+    for (i = 1; i <= 20; i++) { //iterations
+        console.log("Iteration " + i);
+        client.zunionstore("OLDRANK", 1, "RANK"); // Copy all RANK to OLDRANK
+        for (var node = 1; node <= N; node++){ //calculate preck for each page (node)
+            var new_rank = 0;
+            client.zcount("IN"+node, 0, '+inf', function(err, count){
+                if (count != 0){
+                    //for each ingoing:
+                    client.zrange("IN"+node, 0, -1, function(err, ingoings){
+                        ingoings.forEach(function(ing){
+                            client.zscore("OLDRANK", ing, function(err, rank){
+                                client.zcount("OUT"+ing, 0, '+inf', function(err, countout){
+                                    new_rank += BETA * (rank/countout);
+                                });
+
+                            });
+                        });
+
+                    });
+                }
+            });
+            client.zadd("RANK", new_rank, node);
+        }
+
+        client.zrange("RANK", 0, -1, function(err, nodes){
+            var sum_rank = 0;
+            nodes.forEach(function(node){
+                client.zscore("RANK", node, function(err, score){
+                    sum_rank += score
+                });
+            });
+            var delta = (BASE - sum_rank) / N ;
+            console.log("delta " + delta);
+            nodes.forEach(function(node){
+                client.zincrby("RANK", delta, node);
+            });
+        });
+
+
+    }
+
+});

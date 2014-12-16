@@ -25,19 +25,22 @@ var c = new Crawler({
                                 client.sadd("ALLURLS", next_url, function(err, response){
                                     if (response == '1'){ // next_url is new!!!
                                         console.log(next_url + "(" + parent_url + ")");
-                                        client.incr("COUNTER", function(err, counter){
-                                            client.set(next_url, counter);
-                                            client.set("R" + counter, next_url);
-                                            client.get(parent_url, function (err, parent_id){
-                                                client.rpush(parent_id, counter);
-                                                c.queue(next_url);
-                                            });
+                                    client.incr("COUNTER", function(err, counter){
+                                        client.set(next_url, counter);
+                                        client.set("R" + counter, next_url);
+                                        client.get(parent_url, function (err, parent_id){
+                                            client.zincrby("OUT" + parent_id, 1, counter);
+                                            client.zincrby("IN" + counter, 1, parent_id);
+                                            c.queue(next_url);
+                                        });
                                         });
 
                                     } else { // next_url already exists
                                         client.get(parent_url, function (err, parent_id){
                                             client.get(next_url, function (err, next_id){
-                                                client.rpush(parent_id, next_id); });
+                                                client.zincrby("OUT" + parent_id, 1, next_id);
+                                                client.zincrby("IN" + next_id, 1, parent_id);
+                                            });
                                         });
 
                                     }
