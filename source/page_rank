@@ -1,57 +1,148 @@
 var BETA = 1.0; // 1-BETA - jump probability
 var BASE = 1; // sum(rank) = BASE
-var EPS = 0.001;
+var EPS = 0.0001;
 var N = 0;
 var client = require('./utils/redis');
+var async = require('async');
+
+var reduceIngoings = function (runk, id, callback) {
+    client.zscore("RANK", id, function (err, old_rank) {
+        client.zcount("OUT" + id, 0, '+inf', function (err, countout) {
+            if (err) {
+                return callback(err, rank);
+            }
+            runk += BETA * (old_rank / countout);
+            callback(null, runk);
+        });
+    });
+};
+
+var newRank = function(id, cb){
+    client.zcount("IN"+id, 0, '+inf', function(err, count) {
+        if (count != 0) {
+
+            client.zrange("IN" + id, 0, -1, function (err, ingoings) {
+                async.reduce(ingoings, 0, reduceIngoings, function (err, runk) {
+//                    console.log("newRunk: " + runk);
+                      cb(null, runk)
+                });
+
+
+            });
+        } return 0
+    });
+};
+
+//newRank(1, console.log);
+
 
 client.get("COUNTER", function (err, counter){
     N = counter;
+//    N = 1000;
     client.del("RANK");
-    client.del("OLDRANK");
+
     for (var i = 1; i <= N; i++){ // RANK - sorted set [id:rank, id:rank, ...]
         client.zadd("RANK", BASE / N, i);
-        client.zadd("OLDRANK", 0, i);
+
     }
 
-    for (i = 1; i <= 20; i++) { //iterations
+
+    var Iteration = function(i){
         console.log("Iteration " + i);
-        client.zunionstore("OLDRANK", 1, "RANK"); // Copy all RANK to OLDRANK
-        for (var node = 1; node <= N; node++){ //calculate preck for each page (node)
-            var new_rank = 0;
-            client.zcount("IN"+node, 0, '+inf', function(err, count){
-                if (count != 0){
-                    //for each ingoing:
-                    client.zrange("IN"+node, 0, -1, function(err, ingoings){
-                        ingoings.forEach(function(ing){
-                            client.zscore("OLDRANK", ing, function(err, rank){
-                                client.zcount("OUT"+ing, 0, '+inf', function(err, countout){
-                                    new_rank += BETA * (rank/countout);
-                                });
+        var ranks = []; // array of ids
+        for (var j = 1; j <= N; j++) {
+            ranks.push(j);
+        }
+
+        async.map(ranks, newRank, function (e, new_ranks) { // got unincremented ranks
+//            console.log(new_ranks[1]);
+            // lets find a sum of all ranks
+            async.reduce(new_ranks, 0, function (counter, rank, callback){
+                if (err)
+                    return callback(err, counter);
+                counter += rank;
+                callback(null, counter);
+//                process.nextTick(function() { callback(null, counter);})
+
+            }, function (err, sum_rank) { // got a sum of all ranks
+                console.log("sum_rank: " + sum_rank);
+                async.map(new_ranks, function(old_rank, callback){
+                    old_rank += (BASE - sum_rank) / N ; // add delta to each ranks
+                    callback(null, old_rank);
+
+                }, function (e, new_ranks) { // got final ranks
+//                    console.log(new_ranks[1]);
+                    async.map(ranks, function(id, callback){ //save new_ranks to redis
+                        client.zscore("RANK", id, function(err, score){
+                            client.zadd("RANK", new_ranks[id-1], id, function(err1, res){
+//                                console.log(id, score, new_ranks[id]);
+                                callback(null, Math.abs(score - new_ranks[id-1]));
 
                             });
                         });
 
-                    });
-                }
-            });
-            client.zadd("RANK", new_rank, node);
-        }
+                    }, function (e, epses) {
+                        console.log("New ranks saved to redis");
+                        console.log("rank of / = " + new_ranks[0]);
+                        var eps = epses.reduce(function(a,b){ return a+b});
 
-        client.zrange("RANK", 0, -1, function(err, nodes){
-            var sum_rank = 0;
-            nodes.forEach(function(node){
-                client.zscore("RANK", node, function(err, score){
-                    sum_rank += score
+                        if (eps > EPS){
+                            console.log("run next iteration");
+                            Iteration(i+1);
+                        } else Results();
+
+                    });
                 });
             });
-            var delta = (BASE - sum_rank) / N ;
-            console.log("delta " + delta);
-            nodes.forEach(function(node){
-                client.zincrby("RANK", delta, node);
-            });
+
         });
+    };
+//    Iteration(1);
 
-
-    }
 
 });
+
+var Results = function(){
+    client.zrevrange("RANK", 0, 10, function(err, top){
+    console.log(top);
+    top.forEach(function(id){
+        (client.get("R"+id, function(err, url){
+            client.zscore("RANK", id, function(err, score){
+                console.log(url + " " + score)
+            })
+        }));
+        });
+
+    });
+};
+
+
+
+
+
+
+
+
+
+//
+//client.get("COUNTER", function (err, counter) {
+//    N = counter;
+//    var ids = [];
+//    for (var i = 1; i <= N; i++) {
+//        ids.push(i);
+//    }
+//    var countThis = function (counter, id, callback) {
+//        client.zcount("OUT"+id, '-inf', '+inf', function (err, count) {
+//            if (err) {
+//                return callback(err, counter);
+//            }
+//            counter += count;
+//            callback(null, counter);
+//
+//        });
+//    };
+//    async.reduce(ids, 0, countThis, function (err, counter) {
+//        console.log("All nodes: " + counter)
+//    });
+//
+//});
