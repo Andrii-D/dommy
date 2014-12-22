@@ -2,7 +2,28 @@ var Crawler = require("crawler");
 var url = require('url');
 var urls = [];
 var client = require('./utils/redis');
-var SITE_HOST = "http://localhost";
+var SITE_HOST = "http://preply.com";
+
+var isStaticHref = function(href){
+    var statics = [
+        '/static',
+        '.js',
+        '.css',
+        '.jpeg',
+        '.png',
+        '.csv',
+        '.jpg',
+        '.gif',
+        'xml',
+        'void(0);',
+        '.ico'
+    ];
+    return statics.reduce(function(prev, cur){
+                if (prev == true) { return true; } else {return (href.indexOf(cur) != -1)}
+           }, false);
+};
+
+
 
 var c = new Crawler({
     maxConnections : 10,
@@ -18,11 +39,18 @@ var c = new Crawler({
 
                     $('a, link').each(function(index, a) {
                         var toQueueUrl = $(a).attr('href');
-
+//                        console.log("toQ " + toQueueUrl, isStaticHref(toQueueUrl));
                         if (typeof toQueueUrl != 'undefined')
-                            if (toQueueUrl.indexOf('/static') == -1 && toQueueUrl.indexOf('//') != 0)
-                                if ( toQueueUrl.indexOf('/') == 0 || toQueueUrl.indexOf('./') == 0 || toQueueUrl.indexOf("http://preply.com") == 0) {
-                                    var next_url = SITE_HOST + url.parse(toQueueUrl).pathname;
+                            if (isStaticHref(toQueueUrl) == false && toQueueUrl.indexOf('//') != 0 && toQueueUrl.indexOf('mailto') != 0 && toQueueUrl != '' && toQueueUrl != null)
+                                if (toQueueUrl.indexOf('http') != 0 || toQueueUrl.indexOf(SITE_HOST) == 0) {
+                                    var pathname = url.parse(toQueueUrl).pathname;
+//                                    console.log(toQueueUrl, pathname);
+                                    if (typeof pathname == 'undefined' || pathname == null) pathname = '/';
+                                    if (pathname.indexOf('./') == 0) { pathname = pathname.substring(1, pathname.length);}
+                                    if (pathname.indexOf('/') != 0) { pathname = "/" + pathname}
+
+                                    var next_url = SITE_HOST + pathname;
+//                                    console.log(next_url);
                                     client.sadd("ALLURLS", next_url, function(err, response){
                                         if (response == '1'){ // next_url is new!!!
                                             console.log(next_url + "(" + parent_url + ")");
@@ -51,8 +79,7 @@ var c = new Crawler({
 
                     });
 
-                } else
-                {
+                } else {
                     client.sadd("ERRORURLS", result.request.uri.href);
 
                 }
@@ -65,13 +92,13 @@ var c = new Crawler({
     onDrain: function (){
         client.get("COUNTER", function (err, counter){
 
-            if (counter > 10){
+            if (counter > 3){
                 console.log(counter);
             }
         });
 
     },
-    rateLimits: 0,
+    rateLimits: 1,
     userAgent: "Preck",
     skipDuplicates: true
 });
