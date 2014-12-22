@@ -14,13 +14,23 @@ $(document).ready(function() {
             $.post('signup', { website: $("#in_website").val(), email : $("#in_email").val()},
                 function(returnedData){
                     console.log(returnedData);
-                    $(".alert").text(returnedData.message);
-                    $(".alert").show().fadeOut(9000);
+                    if (returnedData.status == 'ok'){
+                        $(".alert").removeClass("alert-danger");
+                        $(".alert").addClass("alert-info");
+                        $(".alert").text("I've succsessfuly signed up for Internal Page Rank. We will send you an email soon! " + returnedData.host);
+                        $(".alert").show().delay(10000).slideUp(1000);
+                    } else {
+                        $(".alert").removeClass("alert-info");
+                        $(".alert").addClass("alert-danger");
+                        $(".alert").text(returnedData.message);
+                        $(".alert").show().delay(9000).slideUp(1000);
+                    }
+
 
                 }, 'json');
         } else {
             $(".alert").text("Please enter valid data");
-            $(".alert").show().fadeOut(9000);
+            $(".alert").show().delay(9000).slideUp(1000);
         }
 
     });

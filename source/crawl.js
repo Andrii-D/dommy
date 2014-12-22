@@ -24,7 +24,7 @@ var isStaticHref = function(href){
            }, false);
 };
 
-var crawl = function(host){
+var crawl = function(host, email){
     SITE_HOST = host;
     var c = new Crawler({
         maxConnections : 10,
@@ -56,9 +56,9 @@ var crawl = function(host){
                                             if (response == '1'){ // next_url is new!!!
                                                 console.log(next_url + "(" + parent_url + ")");
                                                 client.incr(SITE_HOST + "COUNTER", function(err, counter){
-                                                    client.set(next_url, counter);
+                                                    client.set(SITE_HOST + "URL" + next_url, counter);
                                                     client.set(SITE_HOST + "R" + counter, next_url);
-                                                    client.get(parent_url, function (err, parent_id){
+                                                    client.get(SITE_HOST + "URL" + parent_url, function (err, parent_id){
                                                         client.zincrby(SITE_HOST + "OUT" + parent_id, 1, counter);
                                                         client.zincrby(SITE_HOST + "IN" + counter, 1, parent_id);
                                                         c.queue(next_url);
@@ -66,8 +66,8 @@ var crawl = function(host){
                                                 });
 
                                             } else { // next_url already exists
-                                                client.get(parent_url, function (err, parent_id){
-                                                    client.get(next_url, function (err, next_id){
+                                                client.get(SITE_HOST + "URL" + parent_url, function (err, parent_id){
+                                                    client.get(SITE_HOST + "URL" + next_url, function (err, next_id){
                                                         client.zincrby(SITE_HOST + "OUT" + parent_id, 1, next_id);
                                                         client.zincrby(SITE_HOST + "IN" + next_id, 1, parent_id);
                                                     });
@@ -95,7 +95,9 @@ var crawl = function(host){
 
                 if (counter > 3){
                     console.log(counter);
-                    pr(SITE_HOST);
+                    client.set(SITE_HOST, 'crawled', function(err,re){
+                        pr(SITE_HOST, email);
+                    });
                 }
             });
 
@@ -112,13 +114,19 @@ var crawl = function(host){
             if (res == 0){
                 client.decr(SITE_HOST + "COUNTER", function(err, counter) {
                     console.log("Already crawled");
-//                    pr(SITE_HOST);
+                    client.set(SITE_HOST, 'crawled', function(err,re){
+                        pr(SITE_HOST, email);
+                    });
+
                 })
             } else {
-                client.set(SITE_HOST + '/', counter);
+                client.set(SITE_HOST + "URL" + SITE_HOST + '/', counter);
                 client.set(SITE_HOST + "R" + counter, SITE_HOST + '/');
-                console.log("Start crawling");
-                c.queue(SITE_HOST + '/');
+                client.set(SITE_HOST, 'crawling', function(e, r){
+                    console.log("Start crawling");
+                    c.queue(SITE_HOST + '/');
+                });
+
             }
         });
 

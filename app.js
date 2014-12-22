@@ -22,7 +22,7 @@ mailer.extend(app, {
     transportMethod: 'SMTP', // default is SMTP. Accepts anything that nodemailer accepts
     auth: {
         user: 'andrii@preply.com',
-        pass: 'MoveBitch13Preply'
+        pass: '***'
     }
 });
 

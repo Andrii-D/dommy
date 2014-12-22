@@ -1,14 +1,15 @@
-var BETA = 0.7; // 1-BETA - jump probability
+var BETA = 0.8; // 1-BETA - jump probability
 var BASE = 1; // sum(rank) = BASE
 var EPS = 0.000001;
-var N = 0;
+
 var client = require('./utils/redis');
 var async = require('async');
 
 
 
-var calculate = function(HOST){
-    console.log("Calculation for " + HOST)
+var calculate = function(HOST, EMAIL){
+    var N = 0;
+    console.log("Calculation for " + HOST);
     var reduceIngoings = function (runk, id, callback) {
         client.zscore(HOST + "RANK", id, function (err, old_rank) {
             client.zcount(HOST + "OUT" + id, 0, '+inf', function (err, countout) {
@@ -78,28 +79,45 @@ var calculate = function(HOST){
     };
 
     client.get(HOST + "COUNTER", function (err, counter){
-        N = counter;
-        client.del(HOST + "RANK");
 
-        for (var i = 1; i <= N; i++){ // RANK - sorted set [id:rank, id:rank, ...]
-            client.zadd(HOST + "RANK", BASE / N, i);
+        client.get(HOST, function(er, re){
+            if (re == 'crawled'){
+                N = counter;
+                client.del(HOST + "RANK");
 
-        }
+                for (var i = 1; i <= N; i++){ // RANK - sorted set [id:rank, id:rank, ...]
+                    client.zadd(HOST + "RANK", BASE / N, i);
 
-        Iteration(1);
+                }
+                Iteration(1);
+
+            } else {
+                console.log("Im' not going to recalculate")
+            }
+        });
+
+
 
     });
 
     var Results = function(){
-        client.zrevrange(HOST + "RANK", 0, 30, function(err, top){
+        var top5 = [];
+        client.zrevrange(HOST + "RANK", 0, 5, function(err, top){
             console.log(top);
-            top.forEach(function(id){
-                (client.get(HOST + "R"+id, function(err, url){
+            client.set(HOST, 'ranked');
+
+            async.map(top, function(id, callback){
+                client.get(HOST + "R"+id, function(err, url){
                     client.zscore(HOST + "RANK", id, function(err, score){
-                        console.log(url + " " + score)
+//                        console.log(url + " " + score)
+                        callback(null,{'url':url, 'score':score});
                     })
-                }));
+                });
+
+            }, function(err, finals){
+                console.log(finals);
             });
+
 
         });
     };
@@ -108,5 +126,5 @@ var calculate = function(HOST){
 
 
 
-
+//calculate("http://getbootstrap.com");
 module.exports = calculate;
