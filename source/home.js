@@ -9,6 +9,9 @@ function homepage(app) {
     app.route('/').get(function (req, res, next) {
         res.sendfile(__dirname + '/static/index.html');
     });
+    app.route('/payments').get(function (req, res, next) {
+        res.sendfile(__dirname + '/static/payments.html');
+    });
 }
 
 module.exports = homepage;

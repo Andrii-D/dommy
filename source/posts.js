@@ -9,6 +9,7 @@ var config = require('../config');
 var logger = require('./utils/logger');
 var client = require('./utils/redis');
 var url = require('url');
+var sendgrid  = require('sendgrid')('preck', 'NoOneCanHackThis');
 
 function posts(app) {
 
@@ -36,19 +37,22 @@ function posts(app) {
                 return;
             }
             client.set(Host_Name, 'pending', function(err,re){
-                res.send({status: 'ok', message: "Thnaks", host: Host_Name});
+                res.send({status: 'ok', message: "Thnks", host: Host_Name});
                 crawler(Host_Name, Email);
-                app.mailer.send('email', {
-                                to: 'andrii@preply.com',
-                                subject: 'New Submission', // REQUIRED.
-                                otherProperty: 'Other Property'
-                            }, function (err) {
-                                if (err) {
-                                    console.log("Filed to send en email to admin: " + err);
-                                    return;
-                                }
-                                console.log("New Submission of" + Host_Name + "(" + Email + ")");
-                            });
+                var email     = new sendgrid.Email({
+                    to:       'seo@localizely.com',
+                    from:     'seo@localizely.com',
+                    subject:  'New Submission',
+                    text:     ''
+                });
+
+                email.setCategories(['submission']);
+                email.setText("We got some new site: " + Host_Name + " from " + Email);
+
+                sendgrid.send(email, function(err, json) {
+                    if (err) { return console.error(err); }
+                    console.log(json);
+                });
 
                 });
         });

@@ -15,18 +15,6 @@ var cors = require('cors');
 var serveStatic = require('serve-static');
 var path = require('path');
 
-mailer.extend(app, {
-    from: 'seo@localizely.com',
-    host: 'smtp.sendgrid.net', // hostname
-    secureConnection: true, // use SSL
-    port: 465, // port for secure SMTP
-    transportMethod: 'SMTP', // default is SMTP. Accepts anything that nodemailer accepts
-    auth: {
-        user: 'dvoiak',
-        pass: 'MoveBitch13P'
-    }
-});
-
 app.use(cors());
 app.use('/static', express.static(path.join(__dirname, 'source', 'static')));
 app.set('views', path.join(__dirname, 'source', 'static'));
