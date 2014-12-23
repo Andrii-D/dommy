@@ -59,9 +59,9 @@
         </p>
         <p><a class="btn btn-lg btn-success" href="#" role="button" id="submit_btn">Calculate now</a></p>
         <p>
-        <form id="paypal_form" action="{{ PAYPAL_ENDPOINT }}" method="post">
+        <form id="paypal_form" action="<%= PAYPAL_ENDPOINT %>" method="post">
             <input type="hidden" name="cmd" value="_xclick">
-            <input type="hidden" name="business" value="{{ PAYPAL_BUSINESS }}">
+            <input type="hidden" name="business" value="<%= PAYPAL_BUSINESS %>">
             <input type="hidden" name="lc" value="US">
             <input type="hidden" name="item_name" value="{% trans "Payment for the lesson(s) with a Preply tutor." %}">
             <input type="hidden" name="item_number" value="1">
