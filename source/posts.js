@@ -38,7 +38,19 @@ function posts(app) {
             client.set(Host_Name, 'pending', function(err,re){
                 res.send({status: 'ok', message: "Thnaks", host: Host_Name});
                 crawler(Host_Name, Email);
-            });
+                app.mailer.send('email', {
+                                to: 'andrii@preply.com',
+                                subject: 'New Submission', // REQUIRED.
+                                otherProperty: 'Other Property'
+                            }, function (err) {
+                                if (err) {
+                                    console.log("Filed to send en email to admin: " + err);
+                                    return;
+                                }
+                                console.log("New Submission of" + Host_Name + "(" + Email + ")");
+                            });
+
+                });
         });
 //        app.mailer.send('email', {
 //            to: req.body.email, // REQUIRED. This can be a comma delimited string just like a normal email to field.

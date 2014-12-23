@@ -16,14 +16,14 @@ var serveStatic = require('serve-static');
 var path = require('path');
 
 mailer.extend(app, {
-    from: 'andrii@preply.com',
-    host: 'smtp.gmail.com', // hostname
+    from: 'seo@localizely.com',
+    host: 'smtp.sendgrid.net', // hostname
     secureConnection: true, // use SSL
     port: 465, // port for secure SMTP
     transportMethod: 'SMTP', // default is SMTP. Accepts anything that nodemailer accepts
     auth: {
-        user: 'andrii@preply.com',
-        pass: '***'
+        user: 'dvoiak',
+        pass: 'MoveBitch13P'
     }
 });
 
@@ -36,5 +36,5 @@ require('./source/posts')(app);
 require('./source/home')(app);
 
 app.listen(port, function () {
-	logger.info('Preply(fork from likeastore.com) tracker listening on port ' + port + ' ' + env);
+	logger.info('Page Rank Checker ' + port + ' ' + env);
 });
