@@ -58,6 +58,30 @@
         </div>
         </p>
         <p><a class="btn btn-lg btn-success" href="#" role="button" id="submit_btn">Calculate now</a></p>
+        <p>
+        <form id="paypal_form" action="{{ PAYPAL_ENDPOINT }}" method="post">
+            <input type="hidden" name="cmd" value="_xclick">
+            <input type="hidden" name="business" value="{{ PAYPAL_BUSINESS }}">
+            <input type="hidden" name="lc" value="US">
+            <input type="hidden" name="item_name" value="{% trans "Payment for the lesson(s) with a Preply tutor." %}">
+            <input type="hidden" name="item_number" value="1">
+            <input type="hidden" name="amount" id ="paypal_amount" value="10">
+            <input type="hidden" name="quantity" id ="paypal_quantity" value="1">
+            <input type="hidden" name="currency_code" value="USD">
+            <input type="hidden" name="button_subtype" value="services">
+            <input type="hidden" name="no_note" value="0">
+            <input type="hidden" name="no_shipping" value="1">
+            <input type="hidden" name="return" value="{{ user_domain }}{% language_url view_lead lead.id %}{{ LIQPAY_RETURN_URL }}">
+            <input type="hidden" name="rm" value="2">
+            <input type="hidden" name="cbt" value="{% trans "Return to Preply" %}">
+            <input type="hidden" name="cancel_return" value="{{ user_domain }}{% language_url checkout lead.id %}">
+            <input type="hidden" name="email" value="{{ lead.client.user.email }}">
+            <input type="hidden" name="first_name" value="{{ lead.client.user.first_name }}">
+            <input type="hidden" name="custom" id="custom" value="{{ lead.id }},0">
+            <input type="hidden" name="notify_url" value="{{ APOLLO_DOMAIN }}{% url paypal_ipn %}">
+            <input type="hidden" name="bn" value="PP-BuyNowBF:btn_buynowCC_LG.gif:NonHostedGuest">
+        </form>
+        </p>
     </div>
 
     <div class="row marketing">
