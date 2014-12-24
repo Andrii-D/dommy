@@ -148,9 +148,9 @@ var calculate = function(HOST, EMAIL){
                 var file = fs.readFileSync(path.join(__dirname, 'static', 'prod_email.html'), 'utf-8');
                 email.setCategories(['initial']);
                 var html = ejs.render(file, locals);
-                console.log(html);
+
                 email.setHtml(html);
-                //email2.setHtml(ejs.render(file, locals));
+                email2.setHtml(html);
 
 
                 sendgrid.send(email, function(err, json) {
