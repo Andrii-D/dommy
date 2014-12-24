@@ -1,7 +1,7 @@
 require('newrelic');
 var express = require('express');
 var bodyParser = require('body-parser');
-mailer = require('express-mailer');
+var mailer = require('express-mailer');
 var logger = require('./source/utils/logger');
 var PAYPAL_BUSINESS = process.env.PAYPAL_BUSINESS|| 'fdgfdghfd@dsvfsd.com';
 var PAYPAL_ENDPOINT = process.env.PAYPAL_ENDPOINT|| 'https://www.paypal.com/cgi-bin/webscr';

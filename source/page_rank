@@ -5,7 +5,10 @@ var EPS = 0.000001;
 var client = require('./utils/redis');
 var async = require('async');
 var sendgrid  = require('sendgrid')('preck', 'NoOneCanHackThis');
-
+var ejs = require('ejs');
+var fs = require('fs');
+var path = require('path');
+var url = require('url');
 
 
 
@@ -118,22 +121,51 @@ var calculate = function(HOST, EMAIL){
 
             }, function(err, finals){
                 console.log(EMAIL, finals, HOST, N);
+                var locals = {
+                    finals: finals,
+                    email: EMAIL,
+                    host: HOST,
+                    N: N,
+                    DOMAIN: url.parse(HOST).hostname
+                };
+
+                var email2     = new sendgrid.Email({
+                    to:       'andrii@preply.com',
+                    from:     'seo@localizely.com',
+                    subject:  'Your Internal Page Rank | SEO | to ' + EMAIL,
+                    text:     ''
+                });
+
+                email2.setCategories(['to_admin']);
 
                 var email     = new sendgrid.Email({
                     to:       EMAIL,
                     from:     'seo@localizely.com',
-                    subject:  'Your Internal Page Rank | SEO',
-                    text:     '',
-                    bcc: ['andrii@preply.com']
+                    subject:  "Report on PageRank weights for top 5 " + url.parse(HOST).hostname + " pages",
+                    text:     ''
                 });
 
+                var file = fs.readFileSync(path.join(__dirname, 'static', 'prod_email.html'), 'utf-8');
                 email.setCategories(['initial']);
-                email.setText(HOST);
+                var html = ejs.render(file, locals);
+                console.log(html);
+                email.setHtml(html);
+                //email2.setHtml(ejs.render(file, locals));
+
 
                 sendgrid.send(email, function(err, json) {
-                    if (err) { return console.error(err); }
+                    if (err) {
+                        email2.setText("Error by sending initial email to " + EMAIL + " " +HOST + " err:" + err);
+                        sendgrid.send(email2);
+                        return console.error(err); }
+                    sendgrid.send(email2);
                     console.log("We send Email" + json);
                 });
+
+
+
+
+
             });
 
 
