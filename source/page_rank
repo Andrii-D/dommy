@@ -13,16 +13,18 @@ var url = require('url');
 
 
 var calculate = function(HOST, EMAIL){
+    var HOST = HOST;
+    var EMAIL = EMAIL;
     var N = 0;
-    console.log("Calculation for " + HOST);
+    console.log("Calculation for " + HOST + EMAIL + BETA);
+
     var reduceIngoings = function (runk, id, callback) {
         client.zscore(HOST + "RANK", id, function (err, old_rank) {
             client.zcount(HOST + "OUT" + id, 0, '+inf', function (err, countout) {
                 if (err) {
                     return callback(err, rank);
                 }
-                runk += BETA * (old_rank / countout);
-                callback(null, runk);
+                callback(null, runk + BETA * (old_rank / countout));
             });
         });
     };
@@ -48,26 +50,29 @@ var calculate = function(HOST, EMAIL){
         }
 
         async.map(ranks, newRank, function (e, new_ranks) { // got unincremented ranks
-            console.log("got some new ranks");
+//            console.log("got some new ranks");
+//            console.log("final ranks" + new_ranks);
             // lets find a sum of all ranks
-            sum_rank = new_ranks.reduce(function(prev, current){ return prev + current;});
-            console.log("sum_rank: " + sum_rank);
+            var sum_rank = new_ranks.reduce(function(prev, current){ return prev + current;});
+//            console.log("sum_rank: " + sum_rank);
+//            console.log("delta = " + (BASE - sum_rank) / N);
             async.map(new_ranks, function(old_rank, callback){
                 old_rank += (BASE - sum_rank) / N ; // add delta to each ranks
                 callback(null, old_rank);
 
-            }, function (e, new_ranks) { // got final ranks
-//                    console.log(new_ranks[1]);
+            }, function (e, final_ranks) { // got final ranks
+//                    console.log("final ranks" + final_ranks);
                 async.map(ranks, function(id, callback){ //save new_ranks to redis
                     client.zscore(HOST + "RANK", id, function(err, score){
-                        client.zadd(HOST + "RANK", new_ranks[id-1], id, function(err1, res){
-//                                console.log(id, score, new_ranks[id]);
-                            callback(null, Math.abs(score - new_ranks[id-1]));
+                        client.zadd(HOST + "RANK", final_ranks[id-1], id, function(err1, res){
+//                                console.log(id, score, final_ranks[id-1]);
+                            callback(null, Math.abs(score - final_ranks[id-1]));
 
                         });
                     });
 
                 }, function (e, epses) {
+//                    console.log(epses);
                     console.log("New ranks saved to redis");
                     console.log("rank of / = " + new_ranks[0]);
                     var eps = epses.reduce(function(a,b){ return a+b});
@@ -88,6 +93,7 @@ var calculate = function(HOST, EMAIL){
         client.get(HOST, function(er, re){
             if (re == 'crawled'){
                 N = counter;
+                console.log(N);
                 client.del(HOST + "RANK");
 
                 for (var i = 1; i <= N; i++){ // RANK - sorted set [id:rank, id:rank, ...]
@@ -107,7 +113,7 @@ var calculate = function(HOST, EMAIL){
 
     var Results = function(){
         var top5 = [];
-        client.zrevrange(HOST + "RANK", 0, 5, function(err, top){
+        client.zrevrange(HOST + "RANK", 0, 4, function(err, top){
             console.log(top);
             client.set(HOST, 'ranked');
 
@@ -120,7 +126,7 @@ var calculate = function(HOST, EMAIL){
                 });
 
             }, function(err, finals){
-                console.log(EMAIL, finals, HOST, N);
+//                console.log(EMAIL, finals, HOST, N);
                 var locals = {
                     finals: finals,
                     email: EMAIL,
@@ -128,6 +134,7 @@ var calculate = function(HOST, EMAIL){
                     N: N,
                     DOMAIN: url.parse(HOST).hostname
                 };
+                console.log(locals);
 
                 var email2     = new sendgrid.Email({
                     to:       'andrii@preply.com',
@@ -163,9 +170,6 @@ var calculate = function(HOST, EMAIL){
                 });
 
 
-
-
-
             });
 
 
@@ -174,8 +178,5 @@ var calculate = function(HOST, EMAIL){
 
 };
 
-
-
-//calculate("http://getbootstrap.com");
 module.exports = calculate;
 
