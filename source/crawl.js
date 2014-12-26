@@ -2,7 +2,7 @@ var Crawler = require("crawler");
 var url = require('url');
 var pr = require('./page_rank');
 var client = require('./utils/redis');
-var MAX_PAGES = 1500;
+var MAX_PAGES = 15000;
 
 var isStaticHref = function(href){
     var statics = [
@@ -15,7 +15,7 @@ var isStaticHref = function(href){
         '.jpg',
         '.gif',
         'xml',
-        'void(0);',
+        'void(',
         '.ico'
     ];
     return statics.reduce(function(prev, cur){
@@ -26,7 +26,6 @@ var isStaticHref = function(href){
 var crawl = function(host, email){
     var SITE_HOST = host;
     var c = new Crawler({
-        maxConnections : 10,
         callback : function (error, result, $) {
             if (error){
                 console.log("request error " + error)

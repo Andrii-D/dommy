@@ -10,8 +10,6 @@ var fs = require('fs');
 var path = require('path');
 var url = require('url');
 
-
-
 var calculate = function(HOST, EMAIL){
     var HOST = HOST;
     var EMAIL = EMAIL;
@@ -78,7 +76,7 @@ var calculate = function(HOST, EMAIL){
                     var eps = epses.reduce(function(a,b){ return a+b});
                     console.log(eps);
                     if (eps > EPS){
-                        console.log("run next iteration");
+//                        console.log("run next iteration");
                         Iteration(i+1);
                     } else Results();
 
@@ -139,7 +137,7 @@ var calculate = function(HOST, EMAIL){
                 var email2     = new sendgrid.Email({
                     to:       'andrii@preply.com',
                     from:     'seo@localizely.com',
-                    subject:  'Your Internal Page Rank | SEO | to ' + EMAIL,
+                    subject:  "Report on PageRank weights for top 5 " + url.parse(HOST).hostname + " pages, to " + EMAIL,
                     text:     ''
                 });
 
