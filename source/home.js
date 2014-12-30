@@ -8,7 +8,7 @@ var PAYPAL_BUSINESS = process.env.PAYPAL_BUSINESS|| 'fdgfdghfd@dsvfsd.com';
 var PAYPAL_ENDPOINT = process.env.PAYPAL_ENDPOINT|| 'https://www.paypal.com/cgi-bin/webscr';
 var url = require('url');
 
-function homepage(app) {
+function showpage(app) {
     app.route('/').get(function (req, res, next) {
         res.sendfile(__dirname + '/static/index.html');
     });
@@ -26,4 +26,4 @@ function homepage(app) {
     });
 }
 
-module.exports = homepage;
+module.exports = showpage;

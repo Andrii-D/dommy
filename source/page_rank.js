@@ -1,7 +1,7 @@
 var BETA = 0.8; // 1-BETA - jump probability
 var BASE = 1; // sum(rank) = BASE
 var EPS = 0.000001;
-
+var env = process.env.NODE_ENV || 'development';
 var client = require('./utils/redis');
 var async = require('async');
 var sendgrid  = require('sendgrid')('preck', 'NoOneCanHackThis');
@@ -9,12 +9,13 @@ var ejs = require('ejs');
 var fs = require('fs');
 var path = require('path');
 var url = require('url');
+var logger = require('./utils/logger');
 
-var calculate = function(HOST, EMAIL){
+module.exports = function(HOST, EMAIL){
     var HOST = HOST;
     var EMAIL = EMAIL;
     var N = 0;
-    console.log("Calculation for " + HOST + EMAIL + BETA);
+    Logger.info("Calculation for " + HOST + EMAIL + BETA);
 
     var reduceIngoings = function (runk, id, callback) {
         client.zscore(HOST + "RANK", id, function (err, old_rank) {
@@ -30,18 +31,21 @@ var calculate = function(HOST, EMAIL){
     var newRank = function(id, cb){
         client.zcount(HOST + "IN"+id, 0, '+inf', function(err, count) {
             if (count != 0) {
-
                 client.zrange(HOST + "IN" + id, 0, -1, function (err, ingoings) {
                     async.reduce(ingoings, 0, reduceIngoings, function (err, runk) {
                         cb(null, runk)
                     });
                 });
-            } return 0; // problem
+            } else {
+                Logger.info("Zero ingoing links for url id=" + id);
+                return 0; // problem
+            }
+
         });
     };
 
     var Iteration = function(i){
-        console.log("Iteration " + i);
+        Logger.debug("Iteration " + i);
         var ranks = []; // array of ids
         for (var j = 1; j <= N; j++) {
             ranks.push(j);
@@ -176,5 +180,4 @@ var calculate = function(HOST, EMAIL){
 
 };
 
-module.exports = calculate;
 

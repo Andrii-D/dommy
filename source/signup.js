@@ -2,7 +2,7 @@
  * Created by Dvoiak on 22.12.2014.
  */
 var _ = require('underscore');
-var crawler = require('./crawl.js');
+var crawl = require('./crawl.js');
 var moment = require('moment');
 
 var config = require('../config');
@@ -11,7 +11,7 @@ var client = require('./utils/redis');
 var url = require('url');
 var sendgrid  = require('sendgrid')('preck', 'NoOneCanHackThis');
 
-function posts(app) {
+function signup(app) {
 
     app.post('/signup', function(req, res) {
         console.log(req.body);
@@ -38,7 +38,7 @@ function posts(app) {
             }
             client.set(Host_Name, 'pending', function(err,re){
                 res.send({status: 'ok', message: "Thnks", host: Host_Name});
-                crawler(Host_Name, Email);
+                crawl(Host_Name, Email);
                 var email     = new sendgrid.Email({
                     to:       'seo@localizely.com',
                     from:     'seo@localizely.com',
@@ -74,4 +74,4 @@ function posts(app) {
 
 }
 
-module.exports = posts;
+module.exports = signup;
