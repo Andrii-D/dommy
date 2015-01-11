@@ -5,7 +5,6 @@ if(env != 'development'){
   client.auth(process.env.REDIS_PASS)
 }else{
   var redis = require("redis"), client = redis.createClient();
-
 }
 
 client.on("error", function (err) {
