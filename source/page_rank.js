@@ -21,7 +21,7 @@ module.exports = function(host, email){
     Logger.info("Calculation for " + HOST + EMAIL + BETA);
 
     var send_email = function(vars){
-        if (env != 'production'){
+        if (env == 'production'){
             var email     = new sendgrid.Email({
                 to:       vars.email,
                 from:     'seo@localizely.com',
