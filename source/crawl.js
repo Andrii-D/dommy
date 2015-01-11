@@ -3,7 +3,7 @@ var url = require('url');
 var pr = require('./page_rank');
 var client = require('./utils/redis');
 var Logger = require('./utils/logger');
-var MAX_PAGES = 15000;
+var MAX_PAGES = 60000;
 var CONNECT_DELAY = 200;
 
 var isStaticHref = function(href){
