@@ -18,7 +18,7 @@ module.exports = function(host, email){
     var N = 0;
     var last_iteration = 0;
 
-    Logger.info("Calculation for " + HOST + EMAIL + BETA);
+    Logger.info("Calculation for " + HOST + " " + EMAIL);
 
     var send_email = function(vars){
         if (env == 'production'){
@@ -69,7 +69,7 @@ module.exports = function(host, email){
     };
 
     var newRank = function(id, cb){
-        client.zcount(HOST + "IN"+id, 0, '+inf', function(err, count) {
+        client.zcount(HOST + "IN" + id, 0, '+inf', function(err, count) {
             if (count != 0) {
                 client.zrange(HOST + "IN" + id, 0, -1, function (err, ingoings) {
                     async.reduce(ingoings, 0, reduceIngoings, function (err, runk) {
@@ -98,14 +98,14 @@ module.exports = function(host, email){
             }, function(err, sum_rank){
                 async.map(new_ranks, function(old_rank, callback){
                     old_rank += (BASE - sum_rank) / N ; // add delta to each ranks
-                    callback(null, old_rank);
+                    setImmediate(function () { callback(null, old_rank); });
 
                 }, function (e, final_ranks) { // got final ranks
 
                     async.map(ranks, function(id, callback){ //save new_ranks to redis
                         client.zscore(HOST + "RANK", id, function(err, score){
                             client.zadd(HOST + "RANK", final_ranks[id-1], id, function(err1, res){
-                                callback(null, Math.abs(score - final_ranks[id-1]));
+                                setImmediate(function () { callback(null, Math.abs(score - final_ranks[id-1])); });
                             });
                         });
 
@@ -135,9 +135,9 @@ module.exports = function(host, email){
                     }
                     async.map(array_of_ids, function(id, callback){
                         client.zadd(HOST + "RANK", BASE / N, id, function(e, r){
-                            callback(null, id );
+                            setImmediate(function () { callback(null, id); });
                         });
-                    }, function (err, results) {
+                    }, function (err, res) {
                         Iteration(1);
                     });
                 });
@@ -152,7 +152,6 @@ module.exports = function(host, email){
         client.zrevrange(HOST + "RANK", 0, TOP - 1, function(err, top){
             Logger.info(top);
             client.set(HOST, 'ranked');
-
             async.map(top, function(id, callback){
                 client.get(HOST + "R"+id, function(err, url){
                     client.zscore(HOST + "RANK", id, function(err, score){
@@ -161,6 +160,11 @@ module.exports = function(host, email){
                 });
 
             }, function(err, finals){
+//                var sum = 0.0;
+//                for (var i = 0; i < N; i++){
+//                    sum += parseFloat(finals[i].score)
+//                }
+//                Logger.info("Sum = " + sum);
                 var locals = {
                     finals: finals,
                     email: EMAIL,

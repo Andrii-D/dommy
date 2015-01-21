@@ -4,9 +4,10 @@ var pr = require('./page_rank');
 var client = require('./utils/redis');
 var Logger = require('./utils/logger');
 var MAX_PAGES = 60000;
-var CONNECT_DELAY = 200;
+var CONNECT_DELAY = 100;
 
-var isStaticHref = function(href){
+
+var isStaticHref = function(h){
     var statics = [
         '/static',
         '.js',
@@ -16,75 +17,90 @@ var isStaticHref = function(href){
         '.csv',
         '.jpg',
         '.gif',
-        'xml',
+        '.xml',
         'void(',
-        '.ico'
+        '.ico',
+        '.less',
+        ',',
+        ';'
     ];
     return statics.reduce(function(prev, cur){
-                if (prev == true) { return true; } else {return (href.indexOf(cur) != -1)}
+                if (prev == true) { return true; } else {return (h.indexOf(cur) != -1)}
            }, false);
 };
 
+var isInternalLink = function(h){
+    return (!!h && !isStaticHref(h) && !h.startsWith('//') && !h.startsWith('mailto') && !h.startsWith('http') && !!url.parse(h).pathname)
+};
+
+var isNumber = function (o) {
+    return ! isNaN (o-0) && o !== null && o !== "" && o !== false;
+};
+
 module.exports = function(host, email){
-    var SITE_HOST = host;
+    var SITE_HOST = host.toLowerCase();
+    var addNewLink = function(new_link, parent_link){
+        client.incr(SITE_HOST + "COUNTER", function (error, counter) {
+            client.set(SITE_HOST + "URL" + new_link, counter, function (err, resp) {
+                client.set(SITE_HOST + "R" + counter, new_link, function(err, resp){
+                    client.get(SITE_HOST + "URL" + parent_link, function (err, parent_id) {
+                        if (isNumber(parent_id)){
+                            client.zincrby(SITE_HOST + "OUT" + parent_id, 1, counter, function(err, resp){
+                                client.zincrby(SITE_HOST + "IN" + counter, 1, parent_id, function(err, resp){
+//                                    console.log(parent_link + "(" + parent_id + ") -> "+ new_link + "(" + counter + ")");
+                                    if (counter < MAX_PAGES) {
+                                        c.queue(new_link);
+                                    }
+                                });
+                            });
+                        }
+                    });
+                });
+            });
+        });
+    };
+
+    var addExistedLink = function(new_link, parent_link){
+        client.get(SITE_HOST + "URL" + parent_link, function (err, parent_id) {
+            if (isNumber(parent_id)){
+                client.get(SITE_HOST + "URL" + new_link, function (err, next_id) {
+                    if (isNumber(next_id)){
+                        client.zincrby(SITE_HOST + "OUT" + parent_id, 1, next_id, function(err, resp){
+                            client.zincrby(SITE_HOST + "IN" + next_id, 1, parent_id);
+                        });
+                    }
+                });
+            }
+        });
+    };
+
     var c = new Crawler({
         callback : function (error, result, $) {
             if (error){
-                Logger.error("request error " + error)
-            } else
-            {
-                try{
-                    if (result.statusCode == 200){
-
-                        var parent_url = SITE_HOST + result.request.uri.pathname;
-                        $('a, link').each(function(index, a) {
-                            var toQueueUrl = $(a).attr('href');
-                            if (typeof toQueueUrl != 'undefined')
-                                if (isStaticHref(toQueueUrl) == false && toQueueUrl.indexOf('//') != 0 && toQueueUrl.indexOf('mailto') != 0 && toQueueUrl != '' && toQueueUrl != null)
-                                    if (toQueueUrl.indexOf('http') != 0 || toQueueUrl.indexOf(SITE_HOST) == 0) {
-                                        var pathname = url.parse(toQueueUrl).pathname;
-                                        if (typeof pathname == 'undefined' || pathname == null) pathname = '/';
-                                        if (pathname.indexOf('./') == 0) { pathname = pathname.substring(1, pathname.length);}
-                                        if (pathname.indexOf('../') == 0) { pathname = pathname.substring(2, pathname.length);}
-                                        if (pathname.indexOf('/') != 0) { pathname = "/" + pathname}
-
-                                        var next_url = SITE_HOST + pathname;
-                                        client.sadd(SITE_HOST + "ALLURLS", next_url, function(err, response){
-                                            if (response == '1'){ // next_url is new!!!
-                                                client.incr(SITE_HOST + "COUNTER", function(err, counter){
-                                                    client.set(SITE_HOST + "URL" + next_url, counter);
-                                                    client.set(SITE_HOST + "R" + counter, next_url);
-                                                    client.get(SITE_HOST + "URL" + parent_url, function (err, parent_id){
-                                                        client.zincrby(SITE_HOST + "OUT" + parent_id, 1, counter);
-                                                        client.zincrby(SITE_HOST + "IN" + counter, 1, parent_id);
-                                                        //console.log(parent_url+"("+parent_id+") -> "+ next_url+"("+counter+")");
-                                                        if (counter < MAX_PAGES){
-                                                            c.queue(next_url);
-                                                        }
-
-                                                    });
-                                                });
-
-                                            } else { // next_url already exists
-                                                client.get(SITE_HOST + "URL" + parent_url, function (err, parent_id){
-                                                    client.get(SITE_HOST + "URL" + next_url, function (err, next_id){
-                                                        client.zincrby(SITE_HOST + "OUT" + parent_id, 1, next_id);
-                                                        client.zincrby(SITE_HOST + "IN" + next_id, 1, parent_id);
-                                                    });
-                                                });
-
-                                            }
-                                        });
-                                    }
-                        });
-
-                    } else {
-                        client.sadd(SITE_HOST + "ERRORURLS", result.request.uri.href);
-                    }
-                }
-                catch(err)  { Logger.error(err); }
+                Logger.error("request error " + error);
+                return;
             }
+            if (result.statusCode == 200){
+                try {
+                    var parent_url = url.resolve(SITE_HOST, result.request.uri.pathname).toLowerCase();
+                    $('a, link').each(function(index, a) {
+                        var href = $(a).attr('href');
+                        if (isInternalLink(href)) {
+                            var next_url = url.resolve(SITE_HOST, url.parse(href).pathname).toLowerCase();
+                            client.sadd(SITE_HOST + "ALLURLS", next_url, function (error, response) {
+                                if (response == '1') {
+                                    addNewLink(next_url, parent_url);
+                                } else {
+                                    addExistedLink(next_url, parent_url);
+                                }
+                            });
+                        }
+                    });
+                } catch(err) {
+                    Logger.error(err)
+                }
 
+            }
         },
         onDrain: function (){
             client.get(SITE_HOST + "COUNTER", function (err, counter){
@@ -92,6 +108,7 @@ module.exports = function(host, email){
                     Logger.info("Crawled " + counter + " pages");
                     client.set(SITE_HOST, 'crawled', function(err,re){
                         pr(SITE_HOST, email);
+                        console.log("Drain")
                     });
                 }
             });
@@ -99,7 +116,7 @@ module.exports = function(host, email){
         },
         rateLimits: CONNECT_DELAY,
         maxConnections: 1,
-        userAgent: "Preck",
+        userAgent: "Localizely Crawler",
         skipDuplicates: true
     });
 
@@ -127,3 +144,14 @@ module.exports = function(host, email){
 };
 
 
+if (typeof String.prototype.endsWith != 'function') {
+    String.prototype.endsWith = function (str){
+        return this.slice(-str.length) == str;
+    };
+}
+
+if (typeof String.prototype.startsWith != 'function') {
+    String.prototype.startsWith = function (str){
+        return this.slice(0, str.length) == str;
+    };
+}

@@ -8,7 +8,7 @@ if(env != 'development'){
 }
 
 client.on("error", function (err) {
-  logger.error("Error " + err);
+  logger.error("Redis Error " + err);
 });
 
 module.exports = client;
