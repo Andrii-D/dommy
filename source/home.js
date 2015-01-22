@@ -24,6 +24,14 @@ function showpage(app) {
     app.route('/email').get(function (req, res, next) {
         res.render('prod_email', { finals: finals, N : 1500, DOMAIN: url.parse("http://preply.com").hostname });
     });
+    app.route('/site/:domain').get(function (req, res, next) {
+        var Host_Name = 'http://' + req.params['domain'];
+        client.get(Host_Name, function(err, resp) {
+            client.get(Host_Name + "COUNTER", function(err, counter) {
+                res.send(resp + " " + counter);
+            });
+        });
+    });
 }
 
 module.exports = showpage;
