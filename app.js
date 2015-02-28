@@ -20,12 +20,12 @@ app.use(cors());
 app.use('/static', express.static(path.join(__dirname, 'source', 'static')));
 app.set('views', path.join(__dirname, 'source', 'static'));
 
-require('./source/signup')(app);
+require('./source/api')(app);
 require('./source/home')(app);
 app.engine('html', require('ejs').renderFile);
 app.set('view engine', 'html');
 
 app.listen(port, function () {
-	logger.info('Page Rank Checker ' + port + ' ' + env);
+	logger.info('Dommy finder ' + port + ' ' + env);
     if (env == 'development') logger.info("http://localhost:" + port)
 });
